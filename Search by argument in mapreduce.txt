@@ -1,0 +1,43 @@
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class SearchByarg {
+	public static class MyMap extends Mapper<LongWritable, Text, NullWritable, Text>{
+	
+		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			
+			String Txn = value.toString();
+			String TxnParts[] = Txn.split(",");
+			String Uid = TxnParts[0];
+			String Uid2Search = context.getConfiguration().get("Uid2Search");
+			if(Uid.equals(Uid2Search))
+			{
+				context.write(null, value);	
+			}			
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		Configuration conf = new Configuration();
+		conf.set("Uid2Search", args[0]);		
+		Job job = new Job(conf, "Map Reduce Search Txn by Arg");
+		job.setJarByClass(SearchByarg.class);
+		job.setMapperClass(MyMap.class);
+		job.setMapOutputKeyClass(NullWritable.class);
+		job.setMapOutputValueClass(Text.class);
+		job.setNumReduceTasks(0);
+		FileInputFormat.addInputPath(job, new Path(args[1]));
+		FileSystem.get(conf).delete(new Path(args[2]),true);
+		FileOutputFormat.setOutputPath(job, new Path(args[2]));
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+
+}
